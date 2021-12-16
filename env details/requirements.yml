@@ -7,3 +7,5 @@ dependencies:
     - numpy
     - matplotlib
     - scipy
+    
+ # conda install pytorch torchvision torchaudio cpuonly -c pytorch
