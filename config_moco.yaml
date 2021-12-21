@@ -1,0 +1,17 @@
+dataset:
+    # general paths
+    csv_path: '.\imagenette\noisy_imagenette.csv'
+    data_path: '.\data\imagenette2\imagenette2'
+    noisy_labels_x: 'noisy_labels_0'
+    
+transform_augmentation: 
+    ColorJitter:
+        - brightness: 0
+        - contrast: 0
+        - saturation: 0
+        - hue: 0
+    GaussianBlur:
+        - kernel_size: 1
+        - sigma_start: 0.1
+        - sigma_end: 2.0
+    SizeCrop: 224
