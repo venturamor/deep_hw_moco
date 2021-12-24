@@ -134,3 +134,11 @@ dmypy.json
 .idea/inspectionProfiles/profiles_settings.xml
 .idea/deployment.xml
 .idea/deep_hw_moco.iml
+imagenette/README.md
+imagenette/noisy_labels/README.md
+imagenette/noisy_labels/generate_labels.ipynb
+imagenette/noisy_labels/extended_lb.csv
+imagenette/noisy_imagewoof.csv
+imagenette/noisy_imagenette.csv
+imagenette/LICENSE
+imagenette/2020-01-train.md
