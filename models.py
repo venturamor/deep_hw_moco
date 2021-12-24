@@ -1,6 +1,27 @@
 import torch
 from torch import nn
 from collections import OrderedDict
+from config_parser import config_args
+from torchvision.models.resnet import resnet50
+
+class ResNet_Encoder(nn.Module):
+    def __init__(self, num_classes, original_model):
+        # original_model = resnet50()
+        super(ResNet_Encoder, self).__init__()
+        self.original_model = original_model
+        num_ftrs = self.original_model.fc.in_features  # 2048
+
+        # mlp head
+        self.original_model.fc = nn.Sequential(nn.Linear(num_ftrs, num_ftrs),
+                                               nn.ReLU(),
+                                               nn.Linear(num_ftrs, num_classes)
+                                               )
+
+    def forward(self, x):
+        x = self.original_model(x)
+        return x
+
+
 
 
 class LinNet(nn.Module):
@@ -16,22 +37,19 @@ class LinNet(nn.Module):
 
 class MoCoV2(nn.Module):
 
-    def __init__(self, encoder, Queue_Len=16384, T=0.07, m=0.99999, hidden_size=128):
-        super(MoCoV2, self).__init__()
-        self.Queue_Len = Queue_Len
-        self.m = m
-        self.Temp = T
+    def __init__(self, moco_args):
 
-        clf = nn.Sequential(OrderedDict([
-            ('FC_1', nn.Linear(1000, 500)),
-            ('ReLU', nn.ReLU(inplace=True)),
-            ('FC_2', nn.Linear(500, hidden_size))
-        ]))
-        self.query_encoder = encoder(num_classes=hidden_size)
-        self.query_encoder.fc = clf
-        self.key_encoder = encoder(num_classes=hidden_size)
-        self.key_encoder.fc = clf
-        self.queue = torch.randn((self.Queue_Len, hidden_size))
+        super(MoCoV2, self).__init__()
+
+        self.queue_len = moco_args['queue_len']
+        self.m = moco_args['momentum']
+        self.Temp = moco_args['temprature']
+        self.num_classes = moco_args['num_classes']
+
+        self.query_encoder = ResNet_Encoder(num_classes=self.num_classes)
+        self.key_encoder = ResNet_Encoder(num_classes=self.num_classes)
+
+        self.queue = torch.randn((self.queue_len, self.num_classes))
 
 # Change to .view()
     def InfoNCELoss(self, query, key):
@@ -48,7 +66,7 @@ class MoCoV2(nn.Module):
 # Queuing not good yet
     def requeue(self, keys):
         self.queue = torch.cat((self.queue, keys), 0)
-        if self.queue.shape[0] > self.Queue_Len:
+        if self.queue.shape[0] > self.queue_len:
             self.queue = self.queue[keys.shape[0]:, :]
 
 # NOT DONE! What to do with loss??
@@ -66,3 +84,8 @@ class MoCoV2(nn.Module):
         loss = self.InfoNCELoss(query=query, key=key)
 
         self.requeue(keys=key)
+
+
+if __name__ == '__main__':
+    moco_args = config_args['moco_model']
+    moco_model = MoCoV2(moco_args)

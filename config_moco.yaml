@@ -22,3 +22,14 @@ transform_augmentation:
     RandomHorizontalFlip: 0.75
     RandomGrayscale: 0.75
     SizeCrop: 224
+
+dataloader:
+    batch_size: 256
+    num_workers: 5
+
+moco_model:
+    num_classes: 10
+    queue_len: 16384
+    temprature: 0.07
+    momentum: 0.99999
+
