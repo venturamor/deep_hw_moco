@@ -5,6 +5,8 @@ import torch.nn.functional as F
 from sklearn.metrics import f1_score
 from models import ResNet_Encoder
 from torch.utils.tensorboard import SummaryWriter
+import os
+
 
 # copied from HW NLP # TODO: delete
 
@@ -18,10 +20,11 @@ def InfoNCELoss(q, k, queue, moco_model_args):
     l_negative = torch.mm(q.view(N, C), queue.view(C, K))  # NXK
 
     logits = torch.cat([l_positive, l_negative], dim=1)  # NX(1+K)
-    labels = torch.zeros(N,)
-    loss = torch.nn.CrossEntropyLoss(logits/T, labels)
+    labels = torch.zeros(N, )
+    loss = torch.nn.CrossEntropyLoss(logits / T, labels)
 
     return loss
+
 
 # queue update
 def requeue(k, queue):
@@ -33,6 +36,7 @@ def requeue(k, queue):
     """
     queue = torch.cat((queue, k), 0)
     return queue[k.shape[0]:, :]
+
 
 class Trainer:
     def __init__(self, f_q, f_k, aug_transform, moco_model_args, optimizer=None, device=None, queue=None):
@@ -52,7 +56,8 @@ class Trainer:
         self.moco_model_args = moco_model_args
         self.queue_train = queue
         self.queue_val = queue
-        self.writer = SummaryWriter()
+        self.moco_logs_path = moco_model_args['log_path']
+        self.writer = SummaryWriter(self.moco_logs_path)
 
         if self.device:
             self.f_q.to(self.device)
@@ -73,7 +78,19 @@ class Trainer:
         self.f_k.train()
         num_epochs = self.moco_model_args['num_epochs']
         val_step = self.moco_model_args['val_step']
-        for epoch in range(num_epochs):
+        save_every = self.moco_model_args['save_every']
+        best_val_loss = 1e8
+        last_epoch = 0
+
+        if self.moco_model_args['resume'] and os.path.exists(os.path.join(self.moco_logs_path, 'checkpoint.pt')):
+            checkpoints = torch.load(os.path.join(self.moco_logs_path, 'checkpoint.pt'))
+            self.f_k = checkpoints['fk_model']
+            self.f_q = checkpoints['fq_model']
+            self.optimizer.load_state_dict(checkpoints['optimizer_state_dict'])
+            best_val_loss = checkpoints['best_val_loss']
+            last_epoch = checkpoints['last_epoch']
+
+        for epoch in range(last_epoch, num_epochs):
             train_epoch_loss = 0
             for batch_data in dl_train:
                 image, label = batch_data['image'].to(self.device), batch_data['label'].to(self.device)
@@ -82,7 +99,7 @@ class Trainer:
                 # encoders
                 k = self.f_k(image_k)
                 q = self.f_q(image_q)
-                #
+
                 k.detach()  # update only with momentum
 
                 self.optimizer.zero_grad()
@@ -100,22 +117,38 @@ class Trainer:
                 self.queue_train = requeue(k, self.queue_train)
                 train_epoch_loss += loss.item()
             avg_train_loss = train_epoch_loss / len(dl_train)
-            print('epoch {}, loss {}'.format(epoch+1, avg_train_loss))
-            self.writer.add_scalar(tag='Loss/train_loss', scalar_value=avg_train_loss, global_step=epoch+1)
-            if (epoch+1) % val_step == 0:
+            print('epoch {}, loss {}'.format(epoch + 1, avg_train_loss))
+            self.writer.add_scalar(tag='Loss/train_loss', scalar_value=avg_train_loss, global_step=epoch + 1)
+
+            if (epoch + 1) % val_step == 0:
                 avg_val_loss = self.eval(dl_dev)
                 self.writer.add_scalar(tag='Loss/val_loss', scalar_value=avg_val_loss, global_step=epoch + 1)
                 print('epoch {}, val loss {}'.format(epoch + 1, avg_val_loss))
+                if avg_val_loss < best_val_loss:
+                    print('save new best model')
+                    torch.save(self.f_q.state_dict(), os.path.join(self.moco_logs_path, 'best_fq_model.pt'))
+                    torch.save(self.f_k.state_dict(), os.path.join(self.moco_logs_path, 'best_fk_model.pt'))
+                    best_val_loss = avg_val_loss
 
-    def eval(self, dl_dev: DataLoader):
+            if (epoch + 1) % save_every == 0:
+                checkpoints = {
+                    'fq_model': self.f_q.state_dict(),
+                    'fk_model': self.f_k.state_dict(),
+                    'optimizer_state_dict': self.optimizer.state_dict(),
+                    'best_val_loss': best_val_loss,
+                    'last_epoch': epoch + 1,
+                }
+                torch.save(checkpoints, os.path.join(self.moco_logs_path, 'checkpoint.pt'))
+
+    def eval(self, dl_val: DataLoader):
         """
         Args:
-            dl_dev: model to evaluate
+            dl_val: model to evaluate
         Returns: f1 score
         """
         val_loss = 0
         with torch.no_grad:
-            for val_data in dl_dev:
+            for val_data in dl_val:
                 image_val, label_val = val_data['image'].to(self.device), val_data['label'].to(self.device)
                 image_q = self.aug_transform(image_val)
                 image_k = self.aug_transform(image_val)
@@ -128,22 +161,7 @@ class Trainer:
 
                 self.queue_val = requeue(k, self.queue_val)
 
-            return val_loss / len(dl_dev)
-
-    def test(self, dl_test: DataLoader):
-        """
-        Args:
-            dl_dev:
-        Returns: predictions
-        """
-        predictions = []
-        for batch_ndx, sample in enumerate(dl_test):
-            self.model.eval()
-            x_test = sample
-            y_pred = self.model(x_test)
-            y_bool = y_pred[:, 0] < y_pred[:, 1]
-            predictions.extend(y_bool.tolist())
-        return predictions
+            return val_loss / len(dl_val)
 
     def momentum_update(self):
         m = self.moco_model_args['momentum']
