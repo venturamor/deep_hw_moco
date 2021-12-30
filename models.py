@@ -52,22 +52,10 @@ class MoCoV2(nn.Module):
         self.queue = torch.randn((self.queue_len, self.num_classes))
 
 # Change to .view()
-    def InfoNCELoss(self, query, key):
-        l_positive = torch.exp(torch.div(torch.bmm(query.unsqueeze(1), key.unsqueeze(-1)).unsqueeze(-1), self.T))
-        l_negative = torch.sum(torch.exp(torch.div(torch.mm(query, torch.t(self.queue)), self.T)), dim=1)
 
-        out = torch.mean(- torch.log(torch.div(l_positive, l_negative + l_positive)))
-        return out
 
-    def momentum_update(self):
-        for theta_q, theta_k in zip(self.query_encoder.parameters(), self.key_encoder.parameters()):
-            theta_k.data = theta_k.data * self.m + theta_q.data * (1. - self.m)
 
-# Queuing not good yet
-    def requeue(self, keys):
-        self.queue = torch.cat((self.queue, keys), 0)
-        if self.queue.shape[0] > self.queue_len:
-            self.queue = self.queue[keys.shape[0]:, :]
+
 
 # NOT DONE! What to do with loss??
     def forward(self, query_im, key_im):

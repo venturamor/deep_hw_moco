@@ -13,10 +13,7 @@ if __name__ == '__main__':
     moco_df, classifier_df = get_csv_file(dataset_args)
 
 
-    train_dataset = Dataset_forMOCO(
-        dataset_args=dataset_args,
-        transform_args=transform_args,
-        csv_df=moco_df['train'], transform_flag=True)
+    train_dataset = Dataset_forMOCO(dataset_args=dataset_args, csv_df=moco_df['train'], transform_flag=True)
 
     train_dl = DataLoader(train_dataset,
                           batch_size=dataloader_args['batch_size'],

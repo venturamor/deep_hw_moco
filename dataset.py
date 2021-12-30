@@ -10,13 +10,12 @@ from config_parser import config_args
 
 class Dataset_forMOCO(Dataset):
 
-    def __init__(self, dataset_args, csv_df, transform_args, transform_flag=True):
+    def __init__(self, dataset_args, csv_df, transform_flag=True, aug_transform=None):
         self.csv_df = csv_df
         self.data_path = dataset_args['data_path']
         self.noisy_labels = dataset_args['noisy_labels_x']  # for get_item
-        self.transform_args = transform_args
+        self.aug_transform = aug_transform
         self.transform_flag = transform_flag
-        self.data_augmentation()    # define self.aug_transform
 
     def __len__(self):
         return self.csv_df.shape[0]
@@ -36,38 +35,37 @@ class Dataset_forMOCO(Dataset):
         data = {'image': img, 'label': label}
         return data
 
-    def data_augmentation(self):
-        """
-        transformations as described in MOCO original paper [Technical details section]
-        :return:
-        """
-        gaussian_blur_ = self.transform_args['GaussianBlur']
-        color_jitter_ = self.transform_args['ColorJitter']
-        self.aug_transform = nn.Sequential(
-            # transforms.PILToTensor(),
-            transforms.RandomResizedCrop(self.transform_args['SizeCrop']),  # 224 - as in moco orig
-            transforms.Normalize((0.5, 0., 0.5), (0.5, 0.5, 0.5)),
-            # strong color jitter - moco_v2
-            transforms.RandomApply(torch.nn.ModuleList(
-                [transforms.ColorJitter(brightness=color_jitter_['brightness'],
-                                        contrast=color_jitter_['contrast'],
-                                        saturation=color_jitter_['saturation'],
-                                        hue=color_jitter_['hue']),
-                 transforms.GaussianBlur(kernel_size=gaussian_blur_['kernel_size'],
-                                         sigma=(gaussian_blur_['sigma_start'], gaussian_blur_['sigma_end']))
-                 ]), p=self.transform_args['p_apply']),
 
-            transforms.RandomHorizontalFlip(p=self.transform_args['RandomHorizontalFlip']),
-            transforms.RandomGrayscale(p=self.transform_args['RandomGrayscale']),
-            # blur - moco_v2
-            transforms.GaussianBlur(kernel_size=gaussian_blur_['kernel_size'],
-                                    sigma=(gaussian_blur_['sigma_start'], gaussian_blur_['sigma_end']))
+def data_augmentation(transform_args):
+    """
+    transformations as described in MOCO original paper [Technical details section]
+    :param transform_args:
+    :return:
+    """
+    gaussian_blur_ = transform_args['GaussianBlur']
+    color_jitter_ = transform_args['ColorJitter']
+    aug_transform = nn.Sequential(
+        # transforms.PILToTensor(),
+        transforms.RandomResizedCrop(transform_args['SizeCrop']),  # 224 - as in moco orig
+        transforms.Normalize((0.5, 0., 0.5), (0.5, 0.5, 0.5)),
+        # strong color jitter - moco_v2
+        transforms.RandomApply(torch.nn.ModuleList(
+            [transforms.ColorJitter(brightness=color_jitter_['brightness'],
+                                    contrast=color_jitter_['contrast'],
+                                    saturation=color_jitter_['saturation'],
+                                    hue=color_jitter_['hue']),
+             transforms.GaussianBlur(kernel_size=gaussian_blur_['kernel_size'],
+                                     sigma=(gaussian_blur_['sigma_start'], gaussian_blur_['sigma_end']))
+             ]), p=transform_args['p_apply']),
 
-        # transforms.RandomApply(
-        #         transforms.GaussianBlur(kernel_size=gaussian_blur_['kernel_size'],
-        #                                 sigma=(gaussian_blur_['sigma_start'], gaussian_blur_['sigma_end'])),
-        #         p=gaussian_blur_['p_applyBlur'])
-        )
+        transforms.RandomHorizontalFlip(p=transform_args['RandomHorizontalFlip']),
+        transforms.RandomGrayscale(p=transform_args['RandomGrayscale']),
+        # blur - moco_v2
+        transforms.GaussianBlur(kernel_size=gaussian_blur_['kernel_size'],
+                                sigma=(gaussian_blur_['sigma_start'], gaussian_blur_['sigma_end'])))
+
+    return aug_transform
+
 
 
 def get_csv_file(dataset_args):
@@ -111,11 +109,9 @@ if __name__ == '__main__':
 
     moco_df, classifier_df = get_csv_file(dataset_args)
 
-
-    train_dataset = Dataset_forMOCO(
-        dataset_args=dataset_args,
-        transform_args=transform_args,
-        csv_df=moco_df['train'], transform_flag=True)
+    aug_transform = data_augmentation(transform_args)
+    train_dataset = Dataset_forMOCO(dataset_args=dataset_args, csv_df=moco_df['train'],
+                                    transform_flag=True, aug_transform=aug_transform)
 
     train_dataset.__getitem__(1)
 

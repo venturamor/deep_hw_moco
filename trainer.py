@@ -3,28 +3,65 @@ import numpy as np
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
 from sklearn.metrics import f1_score
+from models import ResNet_Encoder
+from torch.utils.tensorboard import SummaryWriter
 
-# copied from HW NLP
+# copied from HW NLP # TODO: delete
+
+def InfoNCELoss(q, k, queue, moco_model_args):
+    T = moco_model_args['temperature']
+    N, C = q.shape()
+    K = queue.shape[1]
+
+    # logits
+    l_positive = torch.bmm(q.view(N, 1, C), k.view(N, C, 1))  # NX1
+    l_negative = torch.mm(q.view(N, C), queue.view(C, K))  # NXK
+
+    logits = torch.cat([l_positive, l_negative], dim=1)  # NX(1+K)
+    labels = torch.zeros(N,)
+    loss = torch.nn.CrossEntropyLoss(logits/T, labels)
+
+    return loss
+
+# queue update
+def requeue(k, queue):
+    """
+
+    :param k:
+    :param queue:
+    :return:
+    """
+    queue = torch.cat((queue, k), 0)
+    return queue[k.shape[0]:, :]
 
 class Trainer:
-    def __init__(self, model, optimizer=None, device=None):
+    def __init__(self, f_q, f_k, aug_transform, moco_model_args, optimizer=None, device=None, queue=None):
         """
-            Initialize the trainer.
-            :param model: Instance of the model to train.
-            :param optimizer: The optimizer to train with.
-            :param device: torch.device to run training on (CPU or GPU).
+        Initialize the trainer.
+        :param queue:
+        :param aug_transform:
+        :param f_q, f_k: encoders to train.
+        :param optimizer: The optimizer to train with.
+        :param device: torch.device to run training on (CPU or GPU).
         """
-        self.model = model
+        self.f_q = f_q
+        self.f_k = f_k
         self.optimizer = optimizer
         self.device = device
+        self.aug_transform = aug_transform
+        self.moco_model_args = moco_model_args
+        self.queue_train = queue
+        self.queue_val = queue
+        self.writer = SummaryWriter()
 
         if self.device:
-            self.model.to(self.device)
+            self.f_q.to(self.device)
+            self.f_k.to(self.device)
 
     def fit(self,
             dl_train: DataLoader,
-            dl_dev: DataLoader,
-            num_epochs):
+            dl_dev: DataLoader
+            ):
         """
         Trains the model for multiple epochs with a given training set,
         and calculates validation loss over a given validation set.
@@ -32,26 +69,43 @@ class Trainer:
         :param dl_dev: Dataloader for the test set.
         :param num_epochs: Number of epochs to train for.
         """
-        self.model.train()
+        self.f_q.train()
+        self.f_k.train()
+        num_epochs = self.moco_model_args['num_epochs']
+        val_step = self.moco_model_args['val_step']
         for epoch in range(num_epochs):
-            # Forward pass: Compute predicted y by passing
-            # x to the model
-            for batch_ndx, sample in enumerate(dl_train):
-                self.optimizer.zero_grad()
-                x_train, y_train = sample
-                y_prob = self.model(x_train)
+            train_epoch_loss = 0
+            for batch_data in dl_train:
+                image, label = batch_data['image'].to(self.device), batch_data['label'].to(self.device)
+                image_q = self.aug_transform(image)
+                image_k = self.aug_transform(image)
+                # encoders
+                k = self.f_k(image_k)
+                q = self.f_q(image_q)
+                #
+                k.detach()  # update only with momentum
 
-                # Compute and print loss
-                loss = torch.nn.functional.nll_loss(y_prob, y_train.long())
+                self.optimizer.zero_grad()
 
                 # Zero gradients, perform a backward pass,
                 # and update the weights.
+                loss = InfoNCELoss(q, k, self.queue, self.moco_model_args)
                 loss.backward()
                 self.optimizer.step()
 
-            f1 = self.eval(dl_dev)
-            print('epoch {}, loss {}'.format(epoch, loss.item()))
-            print('epoch {}, f1 {}'.format(epoch, f1))
+                # moment
+                self.momentum_update()
+
+                # queue update
+                self.queue_train = requeue(k, self.queue_train)
+                train_epoch_loss += loss.item()
+            avg_train_loss = train_epoch_loss / len(dl_train)
+            print('epoch {}, loss {}'.format(epoch+1, avg_train_loss))
+            self.writer.add_scalar(tag='Loss/train_loss', scalar_value=avg_train_loss, global_step=epoch+1)
+            if (epoch+1) % val_step == 0:
+                avg_val_loss = self.eval(dl_dev)
+                self.writer.add_scalar(tag='Loss/val_loss', scalar_value=avg_val_loss, global_step=epoch + 1)
+                print('epoch {}, val loss {}'.format(epoch + 1, avg_val_loss))
 
     def eval(self, dl_dev: DataLoader):
         """
@@ -59,15 +113,22 @@ class Trainer:
             dl_dev: model to evaluate
         Returns: f1 score
         """
-        f_score = 0
-        for batch_ndx, sample in enumerate(dl_dev):
-            self.model.eval()
-            x_dev, y_dev = sample
-            y_pred = self.model(x_dev)
-            y_pred = y_pred[:, 0] < y_pred[:, 1]
-            f1 = f1_score(y_dev, y_pred, average='binary', pos_label=True)
-            f_score += f1
-        return f_score / len(dl_dev)
+        val_loss = 0
+        with torch.no_grad:
+            for val_data in dl_dev:
+                image_val, label_val = val_data['image'].to(self.device), val_data['label'].to(self.device)
+                image_q = self.aug_transform(image_val)
+                image_k = self.aug_transform(image_val)
+                # encoders
+                k = self.f_k(image_k)
+                q = self.f_q(image_q)
+                #
+                loss = InfoNCELoss(q, k, self.queue_val, self.moco_model_args)
+                val_loss += loss.item()
+
+                self.queue_val = requeue(k, self.queue_val)
+
+            return val_loss / len(dl_dev)
 
     def test(self, dl_test: DataLoader):
         """
@@ -83,3 +144,10 @@ class Trainer:
             y_bool = y_pred[:, 0] < y_pred[:, 1]
             predictions.extend(y_bool.tolist())
         return predictions
+
+    def momentum_update(self):
+        m = self.moco_model_args['momentum']
+        # for theta_q, theta_k in zip(self.f_q.parameters(), self.f_k.parameters()):
+        #     theta_k.data = theta_k.data * m + theta_q.data * (1. - m)
+        # self.f_k.parameters = theta_k.data
+        self.f_k.parameters = self.f_k.parameters * m + self.f_q.parameters * (1. - m)
