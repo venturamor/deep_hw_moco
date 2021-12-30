@@ -1,14 +1,8 @@
 import torch
-import numpy as np
 from torch.utils.data import DataLoader
-import torch.nn.functional as F
-from sklearn.metrics import f1_score
-from models import ResNet_Encoder
 from torch.utils.tensorboard import SummaryWriter
 import os
 
-
-# copied from HW NLP # TODO: delete
 
 def InfoNCELoss(q, k, queue, moco_model_args):
     T = moco_model_args['temperature']
@@ -39,23 +33,22 @@ def requeue(k, queue):
 
 
 class Trainer:
-    def __init__(self, f_q, f_k, aug_transform, moco_model_args, optimizer=None, device=None, queue=None):
+    def __init__(self, moco_model, aug_transform, moco_model_args, optimizer=None, device=None):
         """
         Initialize the trainer.
-        :param queue:
+        :param moco_model:
         :param aug_transform:
-        :param f_q, f_k: encoders to train.
         :param optimizer: The optimizer to train with.
         :param device: torch.device to run training on (CPU or GPU).
         """
-        self.f_q = f_q
-        self.f_k = f_k
+        self.f_q = moco_model.f_q
+        self.f_k = moco_model.f_k
         self.optimizer = optimizer
         self.device = device
         self.aug_transform = aug_transform
         self.moco_model_args = moco_model_args
-        self.queue_train = queue
-        self.queue_val = queue
+        self.queue_train = moco_model.queue
+        self.queue_val = moco_model.queue
         self.moco_logs_path = moco_model_args['log_path']
         self.writer = SummaryWriter(self.moco_logs_path)
 
