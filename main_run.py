@@ -31,12 +31,12 @@ if __name__ == '__main__':
                           shuffle=True)
 
     val_dataset = Dataset_forMOCO(dataset_args=dataset_args, csv_df=moco_df['val'],
-                                    transform_flag=True, aug_transform=aug_transform)
+                                  transform_flag=True, aug_transform=aug_transform)
 
     val_dl = DataLoader(val_dataset,
-                          batch_size=dataloader_args['batch_size'],
-                          num_workers=dataloader_args['num_workers'],
-                          shuffle=True)
+                        batch_size=dataloader_args['batch_size'],
+                        num_workers=dataloader_args['num_workers'],
+                        shuffle=True)
 
     moco_model = MoCoV2(moco_args)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -50,5 +50,3 @@ if __name__ == '__main__':
                                           weight_decay=moco_args['optim']['weight_decay']),
                       device=device)
     trainer.fit(train_dl, val_dl)
-
-

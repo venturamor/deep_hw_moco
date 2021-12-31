@@ -11,7 +11,7 @@ def InfoNCELoss(q, k, queue, moco_model_args):
 
     # logits
     l_positive = torch.bmm(q.view(N, 1, C), k.view(N, C, 1)).cpu()  # Nx1
-    l_negative = torch.mm(q.view(N, C).cpu(), queue.view(C, K))  # NxK
+    l_negative = torch.mm(q.view(N, C).cpu(), queue.view(C, K).cpu())  # NxK
 
     logits = torch.cat([l_positive.squeeze(-1), l_negative], dim=1).cpu()  # Nx(1+K)
     labels = torch.zeros((N, ), dtype=torch.long)
@@ -168,7 +168,7 @@ class Trainer:
                 loss = InfoNCELoss(q, k, self.queue_val, self.moco_model_args)
                 val_loss += loss.item()
 
-                self.queue_val = requeue(k, self.queue_val)
+                self.queue_val = requeue(k, self.queue_val.to(self.device))
 
             return val_loss / len(dl_val)
 

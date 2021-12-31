@@ -91,14 +91,19 @@ def get_csv_file(dataset_args):
     # and test
     index_test = int(len(val_df) * dataset_args['test_frac'])
     test_df_moco = val_df_moco[:index_test]
+    test_df_moco = test_df_moco.reset_index().iloc[:, 1:]
     test_df_classifier = val_df_classifier[:index_test]
+    test_df_classifier = test_df_classifier.reset_index().iloc[:, 1:]
+
 
     # fix val
     val_df_moco = val_df_moco[index_test:]
+    val_df_moco = val_df_moco.reset_index().iloc[:, 1:]
     val_df_classifier = val_df_classifier[index_test:]
+    val_df_classifier = val_df_classifier.reset_index().iloc[:, 1:]
 
-    moco_df = {'train': train_df_moco, 'val':val_df_moco, 'test':test_df_moco }
-    classifier_df = {'train':train_df_classifier, 'val': val_df_classifier, 'test':test_df_classifier }
+    moco_df = {'train': train_df_moco, 'val': val_df_moco, 'test': test_df_moco}
+    classifier_df = {'train': train_df_classifier, 'val': val_df_classifier, 'test': test_df_classifier}
 
     return moco_df, classifier_df
 
