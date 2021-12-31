@@ -49,8 +49,9 @@ class MoCoV2(nn.Module):
         self.f_k = copy.deepcopy(self.f_q)
 
         self.queue = torch.randn((self.feat_dim, self.queue_len))
-
+        
 
 if __name__ == '__main__':
+
     moco_args = config_args['moco_model']
     moco_model = MoCoV2(moco_args)

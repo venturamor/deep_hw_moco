@@ -43,6 +43,7 @@ class Trainer:
         :param optimizer: The optimizer to train with.
         :param device: torch.device to run training on (CPU or GPU).
         """
+
         self.f_q = moco_model.f_q
         self.f_k = moco_model.f_k
         self.optimizer = optimizer

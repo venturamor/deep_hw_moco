@@ -1,5 +1,5 @@
 dataset:
-    # general paths
+    # General Paths
     csv_path: '.\imagenette\noisy_imagenette.csv'
     data_path: '.\imagenette'
     noisy_labels_x: 'noisy_labels_0'
