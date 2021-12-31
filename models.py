@@ -3,6 +3,7 @@ from torch import nn
 from collections import OrderedDict
 from config_parser import config_args
 from torchvision.models.resnet import resnet50
+import copy
 
 
 class ResNet_Encoder(nn.Module):
@@ -45,9 +46,9 @@ class MoCoV2(nn.Module):
 
         original_model = resnet50()
         self.f_q = ResNet_Encoder(feat_dim=self.feat_dim, original_model=original_model)
-        self.f_k = ResNet_Encoder(feat_dim=self.feat_dim, original_model=original_model)
+        self.f_k = copy.deepcopy(self.f_q)
 
-        self.queue = torch.randn((self.queue_len, self.feat_dim))
+        self.queue = torch.randn((self.feat_dim, self.queue_len))
 
 
 if __name__ == '__main__':
