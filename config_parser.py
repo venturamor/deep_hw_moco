@@ -9,4 +9,3 @@ args = parser.parse_args()
 with open(args.config, encoding="utf8") as f:
     global config_args
     config_args = yaml.load(f, Loader=yaml.FullLoader)
-    print('done config args')

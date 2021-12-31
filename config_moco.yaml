@@ -1,7 +1,7 @@
 dataset:
     # general paths
     csv_path: '.\imagenette\noisy_imagenette.csv'
-    data_path: '..\..\data\imagenette2\imagenette2'
+    data_path: '.\imagenette'
     noisy_labels_x: 'noisy_labels_0'
     moco_classifier_frac: 0.7   # moco dataset part over classifier part for training
     test_frac: 0.3
@@ -24,12 +24,12 @@ transform_augmentation:
     SizeCrop: 224
 
 dataloader:
-    batch_size: 64
+    batch_size: 45
     num_workers: 5
 
 moco_model:
-    num_epochs: 100
-    val_step: 5
+    num_epochs: 1000
+    val_step: 1
     save_every: 5
     log_path: '.\logs_moco'
     resume_run: 1
@@ -39,6 +39,6 @@ moco_model:
     feat_dim: 128
     K: 512  # queue len
     optim:
-        lr: 0.0001
+        lr: 0.00001
         momentum: 0.9
         weight_decay: 0.00005

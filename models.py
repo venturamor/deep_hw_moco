@@ -6,16 +6,17 @@ from torchvision.models.resnet import resnet50
 
 
 class ResNet_Encoder(nn.Module):
-    def __init__(self, num_classes, original_model):
+    def __init__(self, feat_dim, original_model):
         # original_model = resnet50()
         super(ResNet_Encoder, self).__init__()
         self.original_model = original_model
-        num_ftrs = self.original_model.fc.in_features  # 2048
+        # num_ftrs = original_model.fc.in_features  # 2048
+        num_ftrs = 2048
 
         # mlp head
         self.original_model.fc = nn.Sequential(nn.Linear(num_ftrs, num_ftrs),
                                                nn.ReLU(),
-                                               nn.Linear(num_ftrs, num_classes)
+                                               nn.Linear(num_ftrs, feat_dim)
                                                )
 
     def forward(self, x):
@@ -40,13 +41,13 @@ class MoCoV2(nn.Module):
         super(MoCoV2, self).__init__()
 
         self.queue_len = moco_args['K']
-        self.num_classes = moco_args['num_classes']
+        self.feat_dim = moco_args['feat_dim']
 
         original_model = resnet50()
-        self.f_q = ResNet_Encoder(num_classes=self.num_classes, original_model=original_model)
-        self.f_k = ResNet_Encoder(num_classes=self.num_classes, original_model=original_model)
+        self.f_q = ResNet_Encoder(feat_dim=self.feat_dim, original_model=original_model)
+        self.f_k = ResNet_Encoder(feat_dim=self.feat_dim, original_model=original_model)
 
-        self.queue = torch.randn((self.queue_len, self.num_classes))
+        self.queue = torch.randn((self.queue_len, self.feat_dim))
 
 
 if __name__ == '__main__':

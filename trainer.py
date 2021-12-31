@@ -2,20 +2,21 @@ import torch
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 import os
-
+import time
 
 def InfoNCELoss(q, k, queue, moco_model_args):
     T = moco_model_args['temperature']
-    N, C = q.shape()
-    K = queue.shape[1]
+    N, C = q.shape
+    K = queue.shape[0]
 
     # logits
-    l_positive = torch.bmm(q.view(N, 1, C), k.view(N, C, 1))  # NX1
-    l_negative = torch.mm(q.view(N, C), queue.view(C, K))  # NXK
+    l_positive = torch.bmm(q.view(N, 1, C), k.view(N, C, 1)).cpu()  # Nx1
+    l_negative = torch.mm(q.view(N, C).cpu(), queue.view(C, K))  # NxK
 
-    logits = torch.cat([l_positive, l_negative], dim=1)  # NX(1+K)
-    labels = torch.zeros(N, )
-    loss = torch.nn.CrossEntropyLoss(logits / T, labels)
+    logits = torch.cat([l_positive.squeeze(-1), l_negative], dim=1).cpu()  # Nx(1+K)
+    labels = torch.zeros((N, ), dtype=torch.long)
+    criterion = torch.nn.CrossEntropyLoss()
+    loss = criterion(logits / T, labels)
 
     return loss
 
@@ -56,6 +57,7 @@ class Trainer:
             self.f_q.to(self.device)
             self.f_k.to(self.device)
 
+
     def fit(self,
             dl_train: DataLoader,
             dl_dev: DataLoader
@@ -75,7 +77,7 @@ class Trainer:
         best_val_loss = 1e8
         last_epoch = 0
 
-        if self.moco_model_args['resume'] and os.path.exists(os.path.join(self.moco_logs_path, 'checkpoint.pt')):
+        if self.moco_model_args['resume_run'] and os.path.exists(os.path.join(self.moco_logs_path, 'checkpoint.pt')):
             checkpoints = torch.load(os.path.join(self.moco_logs_path, 'checkpoint.pt'))
             self.f_k = checkpoints['fk_model']
             self.f_q = checkpoints['fq_model']
@@ -84,14 +86,21 @@ class Trainer:
             last_epoch = checkpoints['last_epoch']
 
         for epoch in range(last_epoch, num_epochs):
+            startTime = time.time()
             train_epoch_loss = 0
             for batch_data in dl_train:
-                image, label = batch_data['image'].to(self.device), batch_data['label'].to(self.device)
+                # image, label = batch_data['image'].to(self.device), batch_data['label'].to(self.device)
+
+                image = batch_data['image'].to(self.device)
                 image_q = self.aug_transform(image)
                 image_k = self.aug_transform(image)
                 # encoders
-                k = self.f_k(image_k)
-                q = self.f_q(image_q)
+                with torch.no_grad():
+                    k = self.f_k(image_k).to(self.device)
+                    # moment
+                    self.momentum_update()
+
+                q = self.f_q(image_q).to(self.device)
 
                 k.detach()  # update only with momentum
 
@@ -99,18 +108,24 @@ class Trainer:
 
                 # Zero gradients, perform a backward pass,
                 # and update the weights.
-                loss = InfoNCELoss(q, k, self.queue, self.moco_model_args)
+                loss = InfoNCELoss(q, k, self.queue_train.cpu(), self.moco_model_args)
+                # loss.backward()
+
                 loss.backward()
+
                 self.optimizer.step()
-
-                # moment
-                self.momentum_update()
-
-                # queue update
-                self.queue_train = requeue(k, self.queue_train)
                 train_epoch_loss += loss.item()
+                # queue update
+                self.queue_train = requeue(k, self.queue_train.to(self.device))
+            endTime = time.time()
+
             avg_train_loss = train_epoch_loss / len(dl_train)
-            print('epoch {}, loss {}'.format(epoch + 1, avg_train_loss))
+            print('epoch {}, loss {}, epoch time {} seconds, time remaining {} hours'.format(
+                epoch + 1,
+                avg_train_loss,
+                endTime - startTime,
+                1000 * (endTime - startTime) / 3600 - epoch * (endTime - startTime) / 3600
+            ))
             self.writer.add_scalar(tag='Loss/train_loss', scalar_value=avg_train_loss, global_step=epoch + 1)
 
             if (epoch + 1) % val_step == 0:
@@ -140,9 +155,10 @@ class Trainer:
         Returns: f1 score
         """
         val_loss = 0
-        with torch.no_grad:
+        with torch.no_grad():
             for val_data in dl_val:
-                image_val, label_val = val_data['image'].to(self.device), val_data['label'].to(self.device)
+                # image_val, label_val = val_data['image'].to(self.device), val_data['label'].to(self.device)
+                image_val = val_data['image'].to(self.device)
                 image_q = self.aug_transform(image_val)
                 image_k = self.aug_transform(image_val)
                 # encoders
@@ -158,7 +174,5 @@ class Trainer:
 
     def momentum_update(self):
         m = self.moco_model_args['momentum']
-        # for theta_q, theta_k in zip(self.f_q.parameters(), self.f_k.parameters()):
-        #     theta_k.data = theta_k.data * m + theta_q.data * (1. - m)
-        # self.f_k.parameters = theta_k.data
-        self.f_k.parameters = self.f_k.parameters * m + self.f_q.parameters * (1. - m)
+        for theta_q, theta_k in zip(self.f_q.parameters(), self.f_k.parameters()):
+            theta_k.data = theta_k.data * m + theta_q.data * (1. - m)
