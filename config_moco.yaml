@@ -39,6 +39,6 @@ moco_model:
     feat_dim: 128
     K: 512  # queue len
     optim:
-        lr: 0.00001
+        lr: 0.01
         momentum: 0.9
         weight_decay: 0.00005

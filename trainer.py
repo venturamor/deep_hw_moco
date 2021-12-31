@@ -11,7 +11,7 @@ def InfoNCELoss(q, k, queue, moco_model_args):
 
     # logits
     l_positive = torch.bmm(q.view(N, 1, C), k.view(N, C, 1)).cpu()  # Nx1
-    l_negative = torch.mm(q.view(N, C).cpu(), queue.view(C, K).cpu())  # NxK
+    l_negative = torch.mm(q.view(N, C).cpu(), queue.view(C, K))  # NxK
 
     logits = torch.cat([l_positive.squeeze(-1), l_negative], dim=1).cpu()  # Nx(1+K)
     labels = torch.zeros((N, ), dtype=torch.long)
@@ -123,8 +123,8 @@ class Trainer:
             print('epoch {}, loss {}, epoch time {} seconds, time remaining {} hours'.format(
                 epoch + 1,
                 avg_train_loss,
-                endTime - startTime,
-                1000 * (endTime - startTime) / 3600 - epoch * (endTime - startTime) / 3600
+                round(endTime - startTime, 2),
+                round(1000 * (endTime - startTime) / 3600 - epoch * (endTime - startTime) / 3600, 2)
             ))
             self.writer.add_scalar(tag='Loss/train_loss', scalar_value=avg_train_loss, global_step=epoch + 1)
 
@@ -165,7 +165,7 @@ class Trainer:
                 k = self.f_k(image_k)
                 q = self.f_q(image_q)
                 #
-                loss = InfoNCELoss(q, k, self.queue_val, self.moco_model_args)
+                loss = InfoNCELoss(q, k, self.queue_val.cpu(), self.moco_model_args)
                 val_loss += loss.item()
 
                 self.queue_val = requeue(k, self.queue_val.to(self.device))
