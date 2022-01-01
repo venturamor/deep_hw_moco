@@ -63,8 +63,9 @@ def data_augmentation(transform_args):
         transforms.RandomHorizontalFlip(p=transform_args['RandomHorizontalFlip']),
         transforms.RandomGrayscale(p=transform_args['RandomGrayscale']),
         # blur - moco_v2
-        transforms.GaussianBlur(kernel_size=gaussian_blur_['kernel_size'],
-                                sigma=(gaussian_blur_['sigma_start'], gaussian_blur_['sigma_end'])))
+        # transforms.GaussianBlur(kernel_size=gaussian_blur_['kernel_size'],
+        #                         sigma=(gaussian_blur_['sigma_start'], gaussian_blur_['sigma_end']))
+    )
 
     return aug_transform
 
