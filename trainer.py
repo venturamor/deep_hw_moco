@@ -62,9 +62,9 @@ class Trainer:
             self.optimizer.load_state_dict(checkpoints['optimizer_state_dict'])
             best_val_loss = checkpoints['best_val_loss']
             last_epoch = checkpoints['last_epoch']
-        decayRate = 0.95
+        decayRate = 0.99
         scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer,
-                                                    step_size=5,
+                                                    step_size=1,
                                                     gamma=decayRate)
         criterion = torch.nn.CrossEntropyLoss()
 
