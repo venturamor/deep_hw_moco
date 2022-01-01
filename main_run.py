@@ -14,6 +14,7 @@ torch.backends.cudnn.enabled = True
 
 if __name__ == '__main__':
     # config
+    torch.cuda.empty_cache()
     dataset_args = config_args['dataset']
     moco_args = config_args['moco_model']
     transform_args = config_args['transform_augmentation']
@@ -28,7 +29,8 @@ if __name__ == '__main__':
     train_dl = DataLoader(train_dataset,
                           batch_size=dataloader_args['batch_size'],
                           num_workers=dataloader_args['num_workers'],
-                          shuffle=True)
+                          shuffle=True,
+                          pin_memory=True)
 
     val_dataset = Dataset_forMOCO(dataset_args=dataset_args, csv_df=moco_df['val'],
                                   transform_flag=True, aug_transform=aug_transform)
@@ -36,7 +38,8 @@ if __name__ == '__main__':
     val_dl = DataLoader(val_dataset,
                         batch_size=dataloader_args['batch_size'],
                         num_workers=dataloader_args['num_workers'],
-                        shuffle=True)
+                        shuffle=True,
+                        pin_memory=True)
 
     moco_model = MoCoV2(moco_args)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
