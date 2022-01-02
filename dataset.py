@@ -49,6 +49,7 @@ def data_augmentation(transform_args):
     color_jitter_ = transform_args['ColorJitter']
     aug_transform = nn.Sequential(
         # transforms.PILToTensor(),
+        transforms.Resize(300),
         transforms.RandomResizedCrop(transform_args['SizeCrop']),  # 224 - orig MoCo, less here for computation speed
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         # strong color jitter - moco_v2

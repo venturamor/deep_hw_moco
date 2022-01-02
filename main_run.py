@@ -13,7 +13,6 @@ torch.backends.cudnn.benchmark = True
 torch.backends.cudnn.enabled = True
 
 if __name__ == '__main__':
-    # config
     torch.cuda.empty_cache()
     dataset_args = config_args['dataset']
     moco_args = config_args['moco_model']

@@ -14,6 +14,7 @@ class ResNet_Encoder(nn.Module):
         # num_ftrs = original_model.fc.in_features  # 2048 for resnet50, 512 for resnet18
         num_ftrs = 512
 
+
         # mlp head
         self.original_model.fc = nn.Sequential(nn.Linear(num_ftrs, num_ftrs),
                                                nn.ReLU(),

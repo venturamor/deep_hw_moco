@@ -62,9 +62,9 @@ class Trainer:
             self.optimizer.load_state_dict(checkpoints['optimizer_state_dict'])
             best_val_loss = checkpoints['best_val_loss']
             last_epoch = checkpoints['last_epoch']
-        gamma = 0.50
+        gamma = 0.5
         scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer,
-                                                    step_size=100,
+                                                    step_size=50,
                                                     gamma=gamma)
         criterion = torch.nn.CrossEntropyLoss()
 
@@ -72,14 +72,11 @@ class Trainer:
             self.moco_model.train()
             startTime = time.time()
             train_epoch_loss = 0
-
             for batch_data in dl_train:
                 # image, label = batch_data['image'].to(self.device), batch_data['label'].to(self.device)
-                image1 = batch_data['image1'].to(self.device)
-                image2 = batch_data['image2'].to(self.device)
+                images_q = batch_data['image1'].to(self.device)
+                images_k = batch_data['image2'].to(self.device)
 
-                images_q = image1
-                images_k = image2
                 with torch.cuda.amp.autocast():
                     logits, labels = self.moco_model(images_q, images_k)
                     loss = criterion(logits, labels)
