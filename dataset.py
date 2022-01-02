@@ -32,9 +32,10 @@ class Dataset_forMOCO(Dataset):
             img_tensor = pil2tensor(img).float()
             if img_tensor.shape[0] == 1:
                 img_tensor = img_tensor.repeat(3, 1, 1)
-            img = self.aug_transform(img_tensor)
+            img1 = self.aug_transform(img_tensor)
+            img2 = self.aug_transform(img_tensor)
         # create pairs of image & label
-        data = {'image': img, 'label': label}
+        data = {'image1': img1, 'image2': img2}
         return data
 
 
@@ -48,7 +49,7 @@ def data_augmentation(transform_args):
     color_jitter_ = transform_args['ColorJitter']
     aug_transform = nn.Sequential(
         # transforms.PILToTensor(),
-        transforms.RandomResizedCrop(transform_args['SizeCrop']),  # 224 - as in moco orig
+        transforms.RandomResizedCrop(transform_args['SizeCrop']),  # 224 - orig MoCo, less here for computation speed
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         # strong color jitter - moco_v2
         transforms.RandomApply(torch.nn.ModuleList(

@@ -62,10 +62,10 @@ class Trainer:
             self.optimizer.load_state_dict(checkpoints['optimizer_state_dict'])
             best_val_loss = checkpoints['best_val_loss']
             last_epoch = checkpoints['last_epoch']
-        decayRate = 0.99
+        gamma = 0.50
         scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer,
-                                                    step_size=1,
-                                                    gamma=decayRate)
+                                                    step_size=100,
+                                                    gamma=gamma)
         criterion = torch.nn.CrossEntropyLoss()
 
         for epoch in range(last_epoch, num_epochs):
@@ -75,10 +75,11 @@ class Trainer:
 
             for batch_data in dl_train:
                 # image, label = batch_data['image'].to(self.device), batch_data['label'].to(self.device)
-                images = batch_data['image'].to(self.device)
+                image1 = batch_data['image1'].to(self.device)
+                image2 = batch_data['image2'].to(self.device)
 
-                images_q = images
-                images_k = images
+                images_q = image1
+                images_k = image2
                 with torch.cuda.amp.autocast():
                     logits, labels = self.moco_model(images_q, images_k)
                     loss = criterion(logits, labels)
@@ -102,7 +103,7 @@ class Trainer:
                 epoch + 1,
                 avg_train_loss,
                 round(endTime - startTime, 2),
-                round(1000 * (endTime - startTime) / 3600 - epoch * (endTime - startTime) / 3600, 2)
+                round(num_epochs * (endTime - startTime) / 3600 - epoch * (endTime - startTime) / 3600, 2)
             ))
             self.writer.add_scalar(tag='Loss/train_loss', scalar_value=avg_train_loss, global_step=epoch + 1)
 
@@ -139,10 +140,11 @@ class Trainer:
         criterion = torch.nn.CrossEntropyLoss()
         with torch.no_grad():
             for val_data in dl_val:
-                images = val_data['image'].to(self.device)
+                image1 = val_data['image1'].to(self.device)
+                image2 = val_data['image2'].to(self.device)
 
-                images_q = images
-                images_k = images
+                images_q = image1
+                images_k = image2
                 with torch.cuda.amp.autocast():
                     logits, labels = self.moco_model(images_q, images_k)
                     loss = criterion(logits, labels).detach()

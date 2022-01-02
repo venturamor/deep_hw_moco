@@ -2,7 +2,7 @@ import torch
 from torch import nn
 from collections import OrderedDict
 from config_parser import config_args
-from torchvision.models.resnet import resnet50
+from torchvision.models.resnet import resnet18
 import copy
 
 
@@ -11,8 +11,8 @@ class ResNet_Encoder(nn.Module):
         # original_model = resnet50()
         super(ResNet_Encoder, self).__init__()
         self.original_model = original_model
-        # num_ftrs = original_model.fc.in_features  # 2048
-        num_ftrs = 2048
+        # num_ftrs = original_model.fc.in_features  # 2048 for resnet50, 512 for resnet18
+        num_ftrs = 512
 
         # mlp head
         self.original_model.fc = nn.Sequential(nn.Linear(num_ftrs, num_ftrs),
@@ -33,12 +33,12 @@ class MoCoV2(nn.Module):
         self.queue_len = moco_args['K']
         self.feat_dim = moco_args['feat_dim']
         self.moco_args = moco_args
-        original_model = resnet50(pretrained=True)
+        original_model = resnet18()
         self.f_q = ResNet_Encoder(feat_dim=self.feat_dim, original_model=original_model)
         self.f_k = copy.deepcopy(self.f_q)
 
         for theta_q, theta_k in zip(self.f_q.parameters(), self.f_k.parameters()):
-            theta_k.data.copy_(theta_q.data)
+            theta_k.data.copy_(theta_q.data).detach()
             theta_k.requires_grad = False
 
         # self.queue = torch.randn((self.feat_dim, self.queue_len))
@@ -66,8 +66,6 @@ class MoCoV2(nn.Module):
 
     def InfoNCELoss(self, q, k):
         T = self.moco_args['temperature']
-        N, C = q.shape
-        # K = self.queue.shape[0]
 
         # logits
         # l_positive = torch.bmm(q.view(N, 1, C), k.view(N, C, 1))  # Nx1
@@ -76,9 +74,8 @@ class MoCoV2(nn.Module):
         l_negative = torch.einsum('nc,ck->nk', [q, self.queue.clone().detach()])
 
         logits = torch.cat([l_positive, l_negative], dim=1) / T  # Nx(1+K)
-        labels = torch.zeros((N,), dtype=torch.long).cuda()
 
-        return logits, labels
+        return logits
 
     def forward(self, im_q, im_k):
         """
@@ -89,14 +86,15 @@ class MoCoV2(nn.Module):
         """
         q = self.f_q(im_q)
         q = torch.nn.functional.normalize(q, dim=1)
+        N = q.shape[0]
         with torch.no_grad():
             self.momentum_update()
             k = self.f_k(im_k)
             k = torch.nn.functional.normalize(k, dim=1).detach()
 
-        logits, labels = self.InfoNCELoss(q, k)
+        logits = self.InfoNCELoss(q, k)
+        labels = torch.zeros((N,), dtype=torch.long).cuda()
         self.queue = self.requeue(k).detach()
-
         return logits, labels
 
 
