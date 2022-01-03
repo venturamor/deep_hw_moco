@@ -8,10 +8,10 @@ dataset:
 
 transform_augmentation: 
     ColorJitter:
-        brightness: 0.3
-        contrast: 0.3
-        saturation: 0.3
-        hue: 0.3
+        brightness: 0.25
+        contrast: 0.25
+        saturation: 0.25
+        hue: 0.1
     GaussianBlur:
         kernel_size: 3
         sigma_start: 0.1
@@ -20,12 +20,12 @@ transform_augmentation:
     p_apply: 0.5
 
     RandomHorizontalFlip: 0.5
-    RandomGrayscale: 0.5
+    RandomGrayscale: 0.25
     SizeCrop: 200
 
 dataloader:
     batch_size: 256
-    num_workers: 4
+    num_workers: 8
 
 moco_model:
     num_epochs: 500
@@ -41,4 +41,14 @@ moco_model:
     optim:
         lr: 0.01
         momentum: 0.9
+        weight_decay: 0.0001
+
+lin_cls:
+    num_epochs: 100
+    val_step: 1
+    save_every: 10
+    resume_run: 0
+    log_path: '.\logs_lincls'
+    optim:
+        lr: 0.001
         weight_decay: 0.0001

@@ -6,6 +6,22 @@ from torchvision.models.resnet import resnet18
 import copy
 
 
+class LinCls(nn.Module):
+    def __init__(self, moco_args):
+        super(LinCls, self).__init__()
+        self.feat_dim = moco_args['feat_dim']
+        self.num_classes = moco_args['num_classes']
+        self.net = nn.Sequential(nn.Linear(self.feat_dim, self.feat_dim),
+                                 nn.ReLU(),
+                                 nn.Linear(self.feat_dim, self.num_classes),
+                                 nn.Softmax(dim=0)
+                                 )
+
+    def forward(self, x):
+        out = self.net(x)
+        return out
+
+
 class ResNet_Encoder(nn.Module):
     def __init__(self, feat_dim, original_model):
         # original_model = resnet50()
@@ -13,7 +29,6 @@ class ResNet_Encoder(nn.Module):
         self.original_model = original_model
         # num_ftrs = original_model.fc.in_features  # 2048 for resnet50, 512 for resnet18
         num_ftrs = 512
-
 
         # mlp head
         self.original_model.fc = nn.Sequential(nn.Linear(num_ftrs, num_ftrs),
@@ -99,8 +114,6 @@ class MoCoV2(nn.Module):
         return logits, labels
 
 
-
 if __name__ == '__main__':
-
     moco_args = config_args['moco_model']
     moco_model = MoCoV2(moco_args)

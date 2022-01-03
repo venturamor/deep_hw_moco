@@ -7,7 +7,7 @@ from dataset import Dataset_forMOCO, get_csv_file, data_augmentation
 from config_parser import config_args
 from torch.utils.data import DataLoader
 from models import MoCoV2
-from trainer import Trainer
+from trainer import MoCo_Trainer
 
 torch.backends.cudnn.benchmark = True
 torch.backends.cudnn.enabled = True
@@ -42,13 +42,12 @@ if __name__ == '__main__':
 
     moco_model = MoCoV2(moco_args)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-    trainer = Trainer(moco_model,
-                      aug_transform,
-                      moco_model_args=moco_args,
-                      optimizer=optim.SGD(moco_model.f_q.parameters(),
+    trainer = MoCo_Trainer(moco_model,
+                           aug_transform,
+                           moco_model_args=moco_args,
+                           optimizer=optim.SGD(moco_model.f_q.parameters(),
                                           lr=moco_args['optim']['lr'],
                                           momentum=moco_args['optim']['momentum'],
                                           weight_decay=moco_args['optim']['weight_decay']),
-                      device=device)
+                           device=device)
     trainer.fit(train_dl, val_dl)
