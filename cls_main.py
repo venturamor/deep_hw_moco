@@ -18,7 +18,7 @@ if __name__ == '__main__':
     train_dataset = Dataset_forLinCls(dataset_args=dataset_args, csv_df=classifier_df['train'])
 
     train_dl = DataLoader(train_dataset,
-                          batch_size=dataloader_args['batch_size'],
+                          batch_size=LinCls_args['batch_size'],
                           num_workers=dataloader_args['num_workers'],
                           shuffle=True,
                           pin_memory=True)
@@ -26,14 +26,14 @@ if __name__ == '__main__':
     val_dataset = Dataset_forLinCls(dataset_args=dataset_args, csv_df=classifier_df['val'])
 
     val_dl = DataLoader(val_dataset,
-                        batch_size=dataloader_args['batch_size'],
+                        batch_size=LinCls_args['batch_size'],
                         num_workers=dataloader_args['num_workers'],
                         shuffle=True,
                         pin_memory=True)
 
     moco_model = MoCoV2(moco_args)
     encoder = moco_model.f_q
-    encoder.load_state_dict(torch.load('logs_moco0/best_fq_model.pt'))
+    encoder.load_state_dict(torch.load('logs_moco200ep4096k/best_fq_model.pt'))
     Net = LinCls(moco_args)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

@@ -3,8 +3,8 @@ dataset:
     csv_path: '.\imagenette\noisy_imagenette.csv'
     data_path: '.\imagenette'
     noisy_labels_x: 'noisy_labels_0'
-    moco_classifier_frac: 0.5   # moco dataset part over classifier part for training
-    test_frac: 0.2
+    moco_classifier_frac: 0.7   # moco dataset part over classifier part for training
+    test_frac: 0.0
 
 transform_augmentation: 
     ColorJitter:
@@ -21,14 +21,14 @@ transform_augmentation:
 
     RandomHorizontalFlip: 0.5
     RandomGrayscale: 0.25
-    SizeCrop: 128
+    SizeCrop: 120
 
 dataloader:
     batch_size: 256
     num_workers: 8
 
 moco_model:
-    num_epochs: 500
+    num_epochs: 1000
     val_step: 10
     save_every: 10
     log_path: '.\logs_moco'
@@ -39,13 +39,14 @@ moco_model:
     feat_dim: 128
     K: 4096  # queue len
     optim:
-        lr: 0.03
+        lr: 0.05
         momentum: 0.9
         weight_decay: 0.0001
 
 lin_cls:
     num_epochs: 100
-    val_step: 1
+    batch_size: 256
+    val_step: 10
     save_every: 10
     resume_run: 0
     log_path: '.\logs_lincls'
