@@ -21,10 +21,10 @@ transform_augmentation:
 
     RandomHorizontalFlip: 0.5
     RandomGrayscale: 0.25
-    SizeCrop: 100
+    SizeCrop: 128
 
 dataloader:
-    batch_size: 256
+    batch_size: 128
     num_workers: 8
 
 moco_model:
