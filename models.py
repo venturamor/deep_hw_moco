@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 from config_parser import config_args
-from torchvision.models import efficientnet_b0
+from torchvision.models import efficientnet_b1
 import copy
 
 
@@ -46,7 +46,7 @@ class MoCoV2(nn.Module):
         self.queue_len = moco_args['K']
         self.feat_dim = moco_args['feat_dim']
         self.moco_args = moco_args
-        original_model = efficientnet_b0(pretrained=True)
+        original_model = efficientnet_b1(pretrained=True)
         self.f_q = Encoder(feat_dim=self.feat_dim, original_model=original_model)
         self.f_k = copy.deepcopy(self.f_q)
 
