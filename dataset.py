@@ -28,8 +28,10 @@ class Dataset_forMOCO(Dataset):
         label = self.csv_df[self.noisy_labels][item]
         # apply transformation if exists
         if self.transform_flag:
+            resize = transforms.Resize((300, 300))
             pil2tensor = transforms.PILToTensor()
             img_tensor = pil2tensor(img).float()
+            img_tensor = resize(img_tensor)
             if img_tensor.shape[0] == 1:
                 img_tensor = img_tensor.repeat(3, 1, 1)
             img1 = self.aug_transform(img_tensor)
@@ -76,7 +78,6 @@ def data_augmentation(transform_args):
     color_jitter_ = transform_args['ColorJitter']
     aug_transform = nn.Sequential(
         # transforms.PILToTensor(),
-        transforms.Resize(300),
         transforms.RandomResizedCrop(transform_args['SizeCrop'], scale=(0.25, 1.0)),
         # 224 - orig MoCo, less here for computation speed
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
@@ -114,6 +115,7 @@ def get_csv_file(dataset_args):
     index_moco_val = int(len(val_df) * dataset_args['moco_classifier_frac'])
 
     train_df_moco = train_df[:index_moco_train]
+    train_df_moco = train_df_moco.reset_index().iloc[:, 1:]
     val_df_moco = val_df[:index_moco_val]
 
     # classifier part
