@@ -6,7 +6,6 @@ from torch.utils.data import DataLoader
 from torch import optim
 from trainer import LinCls_Trainer
 
-
 if __name__ == '__main__':
     torch.cuda.empty_cache()
     dataset_args = config_args['dataset']
@@ -33,7 +32,7 @@ if __name__ == '__main__':
 
     moco_model = MoCoV2(moco_args)
     encoder = moco_model.f_q
-    encoder.load_state_dict(torch.load('logs_moco200ep4096k/best_fq_model.pt'))
+    encoder.load_state_dict(torch.load('logs_moco_eff/best_fq_model.pt'))
     Net = LinCls(moco_args)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -42,7 +41,7 @@ if __name__ == '__main__':
                              encoder,
                              LinCls_args,
                              optimizer=optim.Adam(Net.parameters(),
-                                                 lr=LinCls_args['optim']['lr'],
-                                                 weight_decay=LinCls_args['optim']['weight_decay']),
+                                                  lr=LinCls_args['optim']['lr'],
+                                                  weight_decay=LinCls_args['optim']['weight_decay']),
                              device=device)
     trainer.fit(train_dl, val_dl)

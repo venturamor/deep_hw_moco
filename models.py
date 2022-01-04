@@ -11,9 +11,8 @@ class LinCls(nn.Module):
         self.feat_dim = moco_args['feat_dim']
         self.num_classes = moco_args['num_classes']
         self.net = nn.Sequential(nn.Linear(self.feat_dim, self.feat_dim),
-                                 nn.ReLU(),
+                                 nn.SiLU(),
                                  nn.Linear(self.feat_dim, self.num_classes),
-                                 nn.Softmax(dim=0)
                                  )
 
     def forward(self, x):

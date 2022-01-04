@@ -37,7 +37,7 @@ moco_model:
     temperature: 0.07
     momentum: 0.999
     feat_dim: 128
-    K: 4096  # queue len
+    K: 2048  # queue len
     optim:
         lr: 0.05
         momentum: 0.9
@@ -46,10 +46,10 @@ moco_model:
 lin_cls:
     num_epochs: 100
     batch_size: 256
-    val_step: 10
-    save_every: 10
+    val_step: 5
+    save_every: 5
     resume_run: 0
     log_path: '.\logs_lincls'
     optim:
-        lr: 0.001
+        lr: 0.01
         weight_decay: 0.0001
