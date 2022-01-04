@@ -5,7 +5,6 @@ from PIL import Image
 import torch
 import torch.nn as nn
 from torchvision import transforms
-from config_parser import config_args
 
 
 class Dataset_forMOCO(Dataset):
@@ -140,19 +139,3 @@ def get_csv_file(dataset_args):
     classifier_df = {'train': train_df_classifier, 'val': val_df_classifier, 'test': test_df_classifier}
 
     return moco_df, classifier_df
-
-
-if __name__ == '__main__':
-    # config
-    dataset_args = config_args['dataset']
-    transform_args = config_args['transform_augmentation']
-
-    moco_df, classifier_df = get_csv_file(dataset_args)
-
-    aug_transform = data_augmentation(transform_args)
-    train_dataset = Dataset_forMOCO(dataset_args=dataset_args, csv_df=moco_df['train'],
-                                    transform_flag=True, aug_transform=aug_transform)
-
-    train_dataset.__getitem__(1)
-
-    print('done')

@@ -5,8 +5,6 @@ import os
 import time
 import pandas as pd
 import numpy as np
-import models
-# torch.autograd.set_detect_anomaly(True)
 
 
 class MoCo_Trainer:
@@ -26,16 +24,13 @@ class MoCo_Trainer:
         self.aug_transform = aug_transform
         self.moco_model_args = moco_model_args
         self.queue_train = moco_model.queue.to(self.device)
-        # self.queue_train = torch.nn.functional.normalize(self.queue_train, dim=0)
         self.queue_val = moco_model.queue.to(self.device)
-        # self.queue_val = torch.nn.functional.normalize(self.queue_val, dim=0)
         self.moco_logs_path = moco_model_args['log_path']
         self.writer = SummaryWriter(self.moco_logs_path)
 
         if self.device:
             self.f_q.to(self.device)
             self.f_k.to(self.device)
-
 
     def fit(self,
             dl_train: DataLoader,
@@ -75,7 +70,6 @@ class MoCo_Trainer:
             startTime = time.time()
             train_epoch_loss = 0
             for batch_data in dl_train:
-                # image, label = batch_data['image'].to(self.device), batch_data['label'].to(self.device)
                 images_q = batch_data['image1'].to(self.device)
                 images_k = batch_data['image2'].to(self.device)
 
@@ -83,7 +77,6 @@ class MoCo_Trainer:
                     logits, labels = self.moco_model(images_q, images_k)
                     loss = criterion(logits, labels)
 
-                # with torch.autograd.detect_anomaly():
                 self.optimizer.zero_grad()
 
                 scaler.scale(loss).backward()
@@ -174,7 +167,6 @@ class LinCls_Trainer:
             self.LinCls.to(self.device)
             self.encoder.to(self.device)
 
-
     def fit(self,
             dl_train: DataLoader,
             dl_dev: DataLoader
@@ -201,10 +193,7 @@ class LinCls_Trainer:
             self.optimizer.load_state_dict(checkpoints['optimizer_state_dict'])
             best_val_loss = checkpoints['best_val_loss']
             last_epoch = checkpoints['last_epoch']
-        gamma = 0.5
-        scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer,
-                                                    step_size=5,
-                                                    gamma=gamma)
+
         criterion = torch.nn.CrossEntropyLoss()
 
         for epoch in range(last_epoch, num_epochs):
@@ -224,7 +213,6 @@ class LinCls_Trainer:
                     loss = criterion(logits, labels)
                 pred = torch.argmax(logits, dim=1)
                 avg_acc += torch.mean((pred == labels).type(torch.float))
-                # with torch.autograd.detect_anomaly():
                 self.optimizer.zero_grad()
 
                 scaler.scale(loss).backward()
@@ -235,7 +223,6 @@ class LinCls_Trainer:
                 train_epoch_loss += float(loss)
                 loss = None
             avg_acc /= len(dl_train)
-            scheduler.step()
             endTime = time.time()
             torch.cuda.empty_cache()
             avg_train_loss = train_epoch_loss / len(dl_train)
@@ -299,4 +286,3 @@ class LinCls_Trainer:
                 val_loss += float(loss)
                 loss = None
             return val_loss / len(dl_val), val_acc / len(dl_val)
-

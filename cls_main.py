@@ -5,6 +5,8 @@ from config_parser import config_args
 from torch.utils.data import DataLoader
 from torch import optim
 from trainer import LinCls_Trainer
+import os
+
 
 if __name__ == '__main__':
     torch.cuda.empty_cache()
@@ -32,7 +34,7 @@ if __name__ == '__main__':
 
     moco_model = MoCoV2(moco_args)
     encoder = moco_model.f_q
-    encoder.load_state_dict(torch.load('logs_moco_eff/best_fq_model.pt'))
+    encoder.load_state_dict(torch.load(os.path.join(moco_args['log_path'], 'best_fq_model.pt')))
     Net = LinCls(moco_args)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

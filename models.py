@@ -26,7 +26,6 @@ class Encoder(nn.Module):
         self.original_model = original_model
         num_ftrs = 1280
 
-        # mlp head
         self.original_model.classifier = nn.Sequential(nn.Linear(num_ftrs, num_ftrs),
                                                        nn.ReLU(),
                                                        nn.Linear(num_ftrs, feat_dim)
@@ -63,7 +62,6 @@ class MoCoV2(nn.Module):
             theta_k.data = theta_k.data * m + theta_q.data * (1. - m)
             theta_k.requires_grad = False
 
-    # queue update
     @torch.no_grad()
     def requeue(self, k):
         """
@@ -79,7 +77,7 @@ class MoCoV2(nn.Module):
         T = self.moco_args['temperature']
         N, C = q.shape
         K = self.queue_len
-        # logits
+
         l_positive = torch.bmm(q.view(N, 1, C), k.view(N, C, 1)).squeeze(-1)  # Nx1
         l_negative = torch.mm(q.view(N, C), self.queue.view(C, K))  # NxK
 
@@ -106,8 +104,3 @@ class MoCoV2(nn.Module):
         labels = torch.zeros((q.shape[0],), dtype=torch.long).cuda()
         self.queue = self.requeue(k).detach()
         return logits, labels
-
-
-if __name__ == '__main__':
-    moco_args = config_args['moco_model']
-    moco_model = MoCoV2(moco_args)

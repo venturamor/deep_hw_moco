@@ -44,12 +44,12 @@ moco_model:
         weight_decay: 0.0001
 
 lin_cls:
-    num_epochs: 100
+    num_epochs: 50
     batch_size: 256
     val_step: 5
     save_every: 5
     resume_run: 0
     log_path: '.\logs_lincls'
     optim:
-        lr: 0.01
+        lr: 0.0075
         weight_decay: 0.0001

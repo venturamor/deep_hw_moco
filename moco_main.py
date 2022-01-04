@@ -1,8 +1,5 @@
 import torch
-import torch.nn as nn
 import torch.optim as optim
-
-import dataset
 from dataset import Dataset_forMOCO, get_csv_file, data_augmentation
 from config_parser import config_args
 from torch.utils.data import DataLoader
@@ -18,7 +15,7 @@ if __name__ == '__main__':
     moco_args = config_args['moco_model']
     transform_args = config_args['transform_augmentation']
     dataloader_args = config_args['dataloader']
-    moco_df, classifier_df = get_csv_file(dataset_args)
+    moco_df, _ = get_csv_file(dataset_args)
 
     aug_transform = data_augmentation(transform_args)
 
@@ -46,8 +43,8 @@ if __name__ == '__main__':
                            aug_transform,
                            moco_model_args=moco_args,
                            optimizer=optim.SGD(moco_model.f_q.parameters(),
-                                          lr=moco_args['optim']['lr'],
-                                          momentum=moco_args['optim']['momentum'],
-                                          weight_decay=moco_args['optim']['weight_decay']),
+                                               lr=moco_args['optim']['lr'],
+                                               momentum=moco_args['optim']['momentum'],
+                                               weight_decay=moco_args['optim']['weight_decay']),
                            device=device)
     trainer.fit(train_dl, val_dl)
