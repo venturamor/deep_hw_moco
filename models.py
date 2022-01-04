@@ -1,6 +1,5 @@
 import torch
 from torch import nn
-from config_parser import config_args
 from torchvision.models import efficientnet_b1
 import copy
 
@@ -8,14 +7,16 @@ import copy
 class LinCls(nn.Module):
     def __init__(self, moco_args):
         super(LinCls, self).__init__()
-        self.feat_dim = moco_args['feat_dim']
-        self.num_classes = moco_args['num_classes']
+        self.feat_dim = moco_args['feat_dim']   # Feature dimension for encoder output
+        self.num_classes = moco_args['num_classes']  # Number of classes in dataset (10 in Imagenette)
+        # Define linear classifier
         self.net = nn.Sequential(nn.Linear(self.feat_dim, self.feat_dim),
                                  nn.SiLU(),
                                  nn.Linear(self.feat_dim, self.num_classes),
                                  )
 
     def forward(self, x):
+        # Forward
         out = self.net(x)
         return out
 
@@ -23,84 +24,90 @@ class LinCls(nn.Module):
 class Encoder(nn.Module):
     def __init__(self, feat_dim, original_model):
         super(Encoder, self).__init__()
-        self.original_model = original_model
-        num_ftrs = 1280
+        self.original_model = original_model  # Original encoder model
+        # It was decided to use EfficientNet B1, as it has the expressive power of ResNet50,
+        # but with way less parameters and a faster training time
+        num_ftrs = 1280  # Feature dimension in output (before FC layer) of EfficientNet B1
 
+        # Replace FC layer of EfficientNet B1 with the following linear layers
         self.original_model.classifier = nn.Sequential(nn.Linear(num_ftrs, num_ftrs),
                                                        nn.ReLU(),
                                                        nn.Linear(num_ftrs, feat_dim)
                                                        )
 
     def forward(self, x):
+        # Forward
         x = self.original_model(x)
         return x
 
 
 class MoCoV2(nn.Module):
-
     def __init__(self, moco_args):
         super(MoCoV2, self).__init__()
 
-        self.queue_len = moco_args['K']
-        self.feat_dim = moco_args['feat_dim']
-        self.moco_args = moco_args
-        original_model = efficientnet_b1(pretrained=True)
+        self.queue_len = moco_args['K']  # Queue length
+        self.feat_dim = moco_args['feat_dim']  # Feature dimension for encoder output
+        self.moco_args = moco_args  # MoCo model arguments
+        original_model = efficientnet_b1(pretrained=True)  # Original encoder: Pretrained EfficientNet B1
+        # Query encoder initialization
         self.f_q = Encoder(feat_dim=self.feat_dim, original_model=original_model)
+        # Key encoder (copy of query encoder)
         self.f_k = copy.deepcopy(self.f_q)
 
+        # Copying all parameters from query encoder to key encoder and setting no gradients on key encoder
         for theta_q, theta_k in zip(self.f_q.parameters(), self.f_k.parameters()):
             theta_k.data.copy_(theta_q.data).detach()
             theta_k.requires_grad = False
 
+        # Initialize and normalize queue
         self.register_buffer("queue", torch.randn(self.feat_dim, self.queue_len))
         self.queue = nn.functional.normalize(self.queue, dim=0).cuda().detach()
 
     @torch.no_grad()
     def momentum_update(self):
-        m = self.moco_args['momentum']
+        m = self.moco_args['momentum']  # Momentum parameter for momentum update
+        # Update key encoder parameters with momentum update
         for theta_q, theta_k in zip(self.f_q.parameters(), self.f_k.parameters()):
             theta_k.data = theta_k.data * m + theta_q.data * (1. - m)
             theta_k.requires_grad = False
 
     @torch.no_grad()
     def requeue(self, k):
-        """
-
-        :param k:
-        :param queue:
-        :return:
-        """
+        # Add latest batch to queue and remove earliest batch (enqueue and dequeue)
         self.queue = torch.t(torch.cat((torch.t(self.queue), k), dim=0))
         return self.queue[:, k.shape[0]:]
 
     def InfoNCELoss(self, q, k):
-        T = self.moco_args['temperature']
-        N, C = q.shape
-        K = self.queue_len
+        T = self.moco_args['temperature']  # Temperature parameter
+        N, C = q.shape  # Query shape
+        K = self.queue_len  # Queue length
 
+        # Positive samples
         l_positive = torch.bmm(q.view(N, 1, C), k.view(N, C, 1)).squeeze(-1)  # Nx1
+        # Negative samples
         l_negative = torch.mm(q.view(N, C), self.queue.view(C, K))  # NxK
 
+        # Make logits
         logits = torch.cat([l_positive, l_negative], dim=1) / T  # Nx(1+K)
 
         return logits
 
     def forward(self, im_q, im_k):
-        """
-
-        :param im_q:
-        :param im_k:
-        :return:
-        """
+        # Get query and normalize it
         q = self.f_q(im_q)
         q = torch.nn.functional.normalize(q, dim=1)
 
         with torch.no_grad():
+            # Momentum update key encoder parameters
             self.momentum_update()
+            # Get key and normalize it
             k = self.f_k(im_k)
             k = torch.nn.functional.normalize(k, dim=1).detach()
 
+        # Get logits from query and key using InfoNCE loss function
         logits = self.InfoNCELoss(q, k)
+        # Get labels
         labels = torch.zeros((q.shape[0],), dtype=torch.long).cuda()
+        # Requeue the queue
         self.queue = self.requeue(k).detach()
         return logits, labels

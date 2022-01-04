@@ -1,55 +1,54 @@
-dataset:
-    # General Paths
+dataset:    # General paths and dataset splitting parameters
     csv_path: '.\imagenette\noisy_imagenette.csv'
     data_path: '.\imagenette'
     noisy_labels_x: 'noisy_labels_0'
-    moco_classifier_frac: 0.7   # moco dataset part over classifier part for training
-    test_frac: 0.0
+    moco_classifier_frac: 0.7   # MoCo dataset splitting for MoCo training vs. Linear Classifier training
+    test_frac: 0.0  # Test data split
 
-transform_augmentation: 
-    ColorJitter:
-        brightness: 0.25
-        contrast: 0.25
-        saturation: 0.25
-        hue: 0.1
-    GaussianBlur:
-        kernel_size: 3
-        sigma_start: 0.1
-        sigma_end: 1.0
+transform_augmentation: # Transform arguments
+    ColorJitter:    # Color jitter augmentation arguments
+        brightness: 0.25    # Brightness
+        contrast: 0.25  # Contrast
+        saturation: 0.25    # Saturation
+        hue: 0.1    # Hue
+    GaussianBlur:   # Gaussian blurring augmentation arguments
+        kernel_size: 3  # Gaussian kernel size
+        sigma_start: 0.1    # Min. sigma
+        sigma_end: 1.0  # Max. sigma
 
-    p_apply: 0.5
+    p_apply: 0.5    # Probability to apply color jittering or gaussian blurring
 
-    RandomHorizontalFlip: 0.5
-    RandomGrayscale: 0.25
-    SizeCrop: 128
+    RandomHorizontalFlip: 0.5   # Probability to horizontally flip image
+    RandomGrayscale: 0.25   # Probability to turn image to grayscale
+    SizeCrop: 128   # Size of randomly cropped image
 
-dataloader:
-    batch_size: 128
-    num_workers: 8
+dataloader: # Dataloader arguments
+    batch_size: 128 # Batch size for MoCo model
+    num_workers: 8  # Number of workers for dataloaders (both MoCo and linear classifier models)
 
-moco_model:
-    num_epochs: 1000
-    val_step: 10
-    save_every: 10
-    log_path: '.\logs_moco'
-    resume_run: 0
-    num_classes: 10
-    temperature: 0.07
-    momentum: 0.999
-    feat_dim: 128
-    K: 2048  # queue len
-    optim:
-        lr: 0.05
-        momentum: 0.9
-        weight_decay: 0.0001
+moco_model: # MoCo model arguments for initialization and training
+    num_epochs: 1000 # Number of epochs to train
+    val_step: 10    # How many epochs between each validation
+    save_every: 10  # How many epochs between each checkpoint saving
+    log_path: '.\logs_moco' # Path to MoCo logging
+    resume_run: 0   # If 1, resumes training from last checkpoint, if 0 it starts training from scratch
+    num_classes: 10 # Number of classes in data (10 for Imagenette)
+    temperature: 0.07   # Temperature parameter
+    momentum: 0.999 # Momentum parameter
+    feat_dim: 128   # Feature dimension for encoder output
+    K: 2048 # Queue length
+    optim:  # Optimizer arguments
+        lr: 0.05    # Learning rate for SGD optimizer
+        momentum: 0.9   # Momentum for SGD optimizer
+        weight_decay: 0.0001    # Weight decay for SGD optimizer
 
-lin_cls:
-    num_epochs: 50
-    batch_size: 256
-    val_step: 5
-    save_every: 5
-    resume_run: 0
-    log_path: '.\logs_lincls'
-    optim:
-        lr: 0.0075
-        weight_decay: 0.0001
+lin_cls:    # Linear classifier model arguments for initialization and training
+    num_epochs: 50  # Number of epochs to train
+    batch_size: 256 # Batch size for linear classifier
+    val_step: 5 # How many epochs between each validation
+    save_every: 5   # How many epochs between each checkpoint saving
+    resume_run: 0   # If 1, resumes training from last checkpoint, if 0 it starts training from scratch
+    log_path: '.\logs_lincls'   # Path to linear classifier logging
+    optim:  # Optimizer arguments
+        lr: 0.0075  # Learning rate for ADAM optimizer
+        weight_decay: 0.0001    # Weight decay for ADAM optimizer
