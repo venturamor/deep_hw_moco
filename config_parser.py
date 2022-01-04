@@ -1,6 +1,7 @@
 import argparse
 import yaml
 
+# Config Parser
 parser = argparse.ArgumentParser(description='Configuration to MOCO model and Classifier')
 parser.add_argument('--config', default='config_moco.yaml', type=str,
                     help='Path to yaml config file. defualt: config_moco.yaml')
